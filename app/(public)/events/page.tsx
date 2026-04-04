@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Calendar, Tag, Star, Search } from "lucide-react";
+import { Calendar, Tag, Star, Search, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import type { Event } from "@/types/database";
 
@@ -57,6 +57,7 @@ export default function EventsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -157,23 +158,102 @@ export default function EventsPage() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((ev) => (
-              <EventCard key={ev.id} event={ev} />
+              <EventCard key={ev.id} event={ev} onClick={() => setSelectedEvent(ev)} />
             ))}
           </div>
         )}
       </section>
+
+      {selectedEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg/80 backdrop-blur-sm"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div
+            className="w-full max-w-3xl rounded-3xl border border-border bg-surface shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-border">
+              <div>
+                <p className="text-muted text-xs uppercase tracking-[0.3em] mb-2">Event details</p>
+                <h2 className="text-2xl font-syne font-800 text-white" style={{ fontWeight: 800 }}>
+                  {selectedEvent.title}
+                </h2>
+                <p className="text-muted text-sm mt-1">
+                  {new Date(selectedEvent.date).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEvent(null)}
+                className="rounded-full p-2 text-muted transition-colors hover:text-white"
+                aria-label="Close event details"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {selectedEvent.image_url ? (
+              <div className="relative h-64 w-full bg-surface-2">
+                <Image
+                  src={selectedEvent.image_url}
+                  alt={selectedEvent.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex h-64 items-center justify-center bg-surface-2 text-orange/20">
+                <span className="text-[5rem] font-syne font-800" style={{ fontWeight: 800 }}>
+                  {selectedEvent.title.charAt(0)}
+                </span>
+              </div>
+            )}
+            <div className="p-6 space-y-5">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${CATEGORY_COLORS[selectedEvent.category] ?? "border-border text-muted"}`}>
+                  <Tag size={12} />
+                  {selectedEvent.category}
+                </span>
+                {selectedEvent.highlight && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-lime/90 px-3 py-1 text-bg text-xs">
+                    <Star size={12} /> Featured
+                  </span>
+                )}
+              </div>
+              <p className="text-muted leading-relaxed text-sm">
+                {selectedEvent.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function EventCard({ event }: { event: Event }) {
+function EventCard({ event, onClick }: { event: Event; onClick: () => void }) {
   const catStyle = CATEGORY_COLORS[event.category] || "bg-surface-2 text-muted border-border";
   const formattedDate = new Date(event.date).toLocaleDateString("en-IN", {
     day: "numeric", month: "long", year: "numeric",
   });
 
   return (
-    <div className="glass-card glass-card-hover rounded-2xl overflow-hidden group flex flex-col">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      className="glass-card glass-card-hover rounded-2xl overflow-hidden group flex flex-col cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange/40"
+    >
       <div className="relative h-48 bg-gradient-to-br from-surface-2 to-surface overflow-hidden flex-shrink-0">
         {event.image_url ? (
           <Image src={event.image_url} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />

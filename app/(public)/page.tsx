@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Calendar, Users, Zap, Star } from "lucide-react";
+import { ArrowRight, Calendar, Users, Zap, Star, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import type { Event } from "@/types/database";
 
@@ -25,6 +25,7 @@ const MARQUEE_TEXT = [
 
 export default function HomePage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -188,11 +189,69 @@ export default function HomePage() {
                   }),
                   imageUrl: ev.image_url || undefined,
                 }}
+                onClick={() => setSelectedEvent(ev)}
               />
             ))}
           </div>
         )}
       </section>
+
+      {selectedEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg/80 backdrop-blur-sm"
+          onClick={() => setSelectedEvent(null)}
+        >
+          <div
+            className="w-full max-w-3xl rounded-3xl border border-border bg-surface shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-border">
+              <div>
+                <p className="text-muted text-xs uppercase tracking-[0.3em] mb-2">Event details</p>
+                <h2 className="text-2xl font-syne font-800 text-white" style={{ fontWeight: 800 }}>
+                  {selectedEvent.title}
+                </h2>
+                <p className="text-muted text-sm mt-1">
+                  {new Date(selectedEvent.date).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEvent(null)}
+                className="rounded-full p-2 text-muted transition-colors hover:text-white"
+                aria-label="Close event details"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {selectedEvent.image_url ? (
+              <div className="relative h-64 w-full bg-surface-2">
+                <Image
+                  src={selectedEvent.image_url}
+                  alt={selectedEvent.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex h-64 items-center justify-center bg-surface-2 text-orange/20">
+                <span className="text-[5rem] font-syne font-800" style={{ fontWeight: 800 }}>
+                  {selectedEvent.title.charAt(0)}
+                </span>
+              </div>
+            )}
+            <div className="p-6 space-y-5">
+              <p className="text-muted leading-relaxed text-sm">
+                {selectedEvent.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── ABOUT TEASER ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-24">
@@ -267,6 +326,7 @@ export default function HomePage() {
 
 function EventCard({
   event,
+  onClick,
 }: {
   event: {
     title: string;
@@ -275,9 +335,21 @@ function EventCard({
     date: string;
     imageUrl?: string;
   };
+  onClick?: () => void;
 }) {
   return (
-    <div className="glass-card glass-card-hover rounded-2xl overflow-hidden group cursor-default">
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      } : undefined}
+      className={`glass-card glass-card-hover rounded-2xl overflow-hidden group flex flex-col ${onClick ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange/40" : "cursor-default"}`}
+    >
       {/* Image placeholder / actual image */}
       <div className="relative h-44 bg-gradient-to-br from-surface-2 to-surface overflow-hidden">
         {event.imageUrl ? (
